@@ -26,7 +26,6 @@ public with sharing class AccountProcessor {
             acc.Case_Through_Phone__c = phone;
             acc.Case_Through_Email__c = email;
         }
-
         //update accounts
         if (!accounts.isEmpty()) {
             try {
@@ -38,3 +37,5 @@ public with sharing class AccountProcessor {
         }
     }
 }
+
+
