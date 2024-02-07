@@ -51,8 +51,13 @@ public with sharing class AccountTriggerHandler {
     public static void afterInsert(List<Account> newAccList) {
         List<Contact> conList = new List<Contact>();
         List<Opportunity> oppList = new List<Opportunity>();
+        Set<Account> telecomAccounts = new Set<Account>();
         //Iterate over the new accounts and create a contact & opp
         for (Account acc : newAccList) {
+            //check if the industry is Telecommunications
+            if (acc.Industry == 'Telecommunications') {
+                telecomAccounts.add(acc);
+            }
             //Create a Contact
             Contact con = new Contact();
             con.LastName = acc.Name;
@@ -69,6 +74,13 @@ public with sharing class AccountTriggerHandler {
             opp.AccountId = acc.Id;
             oppList.add(opp);
         }
+
+        // invoke queueable on telecom accounts
+        if (!telecomAccounts.isEmpty()) {
+            TelecomAccountsQueueable queueable = new TelecomAccountsQueueable(telecomAccounts);
+            System.enqueueJob(queueable);
+        }
+        //insert contacts
         if (!conList.isEmpty()) {
             try {
                 insert conlist;
@@ -76,6 +88,7 @@ public with sharing class AccountTriggerHandler {
                 //create a log
             }
         }
+        //insert opportunitiy
         if (!oppList.isEmpty()) {
             try {
                 insert oppList;
