@@ -1,4 +1,9 @@
 public with sharing class AccountTriggerHandler {
+    //class level contants
+    private static final String STAGE_PROSOECT = 'Prospecting';
+    private static final String TYPE_NEW_CUSTOMER = 'New Customer';
+    private static final String STATUS_CLOSED = 'Closed';
+
     //Delete all related Opportunities and check Do Not Contact checkbox on related 
     //contact when user chages Account Status from Open to closed.
     public static void deleteOppandContact(List<Account> newAccList, Map<Id,Account> oldAccMap) {
@@ -42,4 +47,72 @@ public with sharing class AccountTriggerHandler {
             }           
         }
     }
+
+    public static void afterInsert(List<Account> newAccList) {
+        List<Contact> conList = new List<Contact>();
+        List<Opportunity> oppList = new List<Opportunity>();
+        //Iterate over the new accounts and create a contact & opp
+        for (Account acc : newAccList) {
+            //Create a Contact
+            Contact con = new Contact();
+            con.LastName = acc.Name;
+            con.Phone = acc.Phone;
+            con.AccountId = acc.Id;
+            conList.add(con);
+            //create a Opp
+            Opportunity opp = new Opportunity();
+            opp.Name = acc.Name;
+            opp.StageName = STAGE_PROSOECT;
+            opp.Type = TYPE_NEW_CUSTOMER;
+            opp.Amount = acc.AnnualRevenue;
+            opp.CloseDate = Date.today().addDays(7) ;
+            opp.AccountId = acc.Id;
+            oppList.add(opp);
+        }
+        if (!conList.isEmpty()) {
+            try {
+                insert conlist;
+            } catch (Exception ex) {
+                //create a log
+            }
+        }
+        if (!oppList.isEmpty()) {
+            try {
+                insert oppList;
+            } catch (Exception ex) {
+                
+            }
+        }
+    }
+
+   //When customer priority is changed  update to related case priority same as account
+
+   public static void afterUpdate(Map<Id,Account> newAccMap, Map<Id,Account> oldAccMap) {
+    Set<Id> accids = new Set<Id>();
+
+    //check if the account's customer priority is changed
+    for (Id accId : newAccMap.keySet()) {
+        Account oldAccount = oldAccMap.get(accId);
+        Account newAccount = newAccMap.get(accId);
+        if (newAccount.CustomerPriority__c != oldAccount.CustomerPriority__c) {
+            accids.add(newAccount.Id);
+        }
+    }
+
+    //make the open cases priority aligned
+    List<Case> caseList = [SELECT Id, Priority, Account.CustomerPriority__c
+                           FROM Case WHERE AccountId IN: accids
+                           AND Status != :STATUS_CLOSED];
+    for (Case cs : caseList) {
+        cs.Priority = cs.Account.CustomerPriority__c;
+    }
+    if (!caseList.isEmpty()) {
+        try {
+            update caseList;
+        } catch (Exception ex) {
+            //create a log
+            System.debug(ex.getMessage());
+        }
+    }                       
+   }
 }
