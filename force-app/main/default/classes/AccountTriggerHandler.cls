@@ -54,9 +54,14 @@ public with sharing class AccountTriggerHandler {
         Map<Id,Account> accMap = new Map<Id,Account>();
         List<Account> listToUpdate = new List<Account>();
         List<Opportunity> oppList = new List<Opportunity>();
+        Set<Account> telecomAccounts = new Set<Account>();
         //Iterate over the new accounts and create a contact & opp
         //Automatically create related Contact on insertion of account and update Client Contact lookup field.
         for (Account acc : newAccList) {
+            //check if the industry is Telecommunications
+            if (acc.Industry == 'Telecommunications') {
+                telecomAccounts.add(acc);
+            }
             //Create a Contact
             Contact con = new Contact();
             con.LastName = acc.Name;
@@ -75,13 +80,6 @@ public with sharing class AccountTriggerHandler {
             opp.AccountId = acc.Id;
             oppList.add(opp);
         }
-        if (!oppList.isEmpty()) {
-            try {
-                insert oppList;
-            } catch (Exception ex) {
-                
-            }
-        }
         if (!conList.isEmpty()) {
             try {
                 insert conlist;
@@ -89,25 +87,11 @@ public with sharing class AccountTriggerHandler {
                 //create a log
             }
         }
-        if (!accIds.isEmpty()) {
-            List<Account> accList = [SELECT Id,Client_Contact__c FROM Account WHERE Id IN : accIds];
-            if (!accList.isEmpty()) {
-                for (Account accObj : accList) {
-                    accMap.put(accObj.Id, accObj);
-                }
-            }
-
-            if (!conList.isEmpty()) {
-                for (Contact con : conList) {
-                    if (accMap.containsKey(con.AccountId)) {
-                        Account ac = accMap.get(con.AccountId);
-                        ac.Client_Contact__c = con.Id;
-                        listToUpdate.add(ac);
-                    }
-                }
-            }
-            if (!listToUpdate.isEmpty()) {
-                update listToUpdate;
+        if (!oppList.isEmpty()) {
+            try {
+                insert oppList;
+            } catch (Exception ex) {
+                
             }
         }
     }
