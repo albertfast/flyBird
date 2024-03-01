@@ -6,7 +6,16 @@ trigger AccountTrigger on Account (after insert, after update) {
         if (trigger.isUpdate) {
             AccountTriggerHandler.afterUpdate(trigger.newMap, trigger.oldMap);
             AccountTriggerHandler.deleteOppandContact(trigger.new, trigger.oldMap);
+            AccountTriggerHandler.deleteOppProbability(trigger.new, trigger.oldMap);
             
         }
     }
 }
+
+
+
+
+
+
+
+
