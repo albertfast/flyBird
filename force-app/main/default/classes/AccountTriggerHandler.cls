@@ -66,6 +66,7 @@ public with sharing class AccountTriggerHandler {
             Contact con = new Contact();
             con.LastName = acc.Name;
             con.Phone = acc.Phone;
+            con.Status__c = 'Active';
             con.AccountId = acc.Id;
             conList.add(con);
             accIds.add(acc.Id);
@@ -155,7 +156,82 @@ public with sharing class AccountTriggerHandler {
     }
     
    }
+
+/*Want to write a trigger, that fires when an Account's "Status__c" field is updated from "Active" to "Inactive"
+    [Account.Status__c : "Active", "Inactive"]
+        Can assume picklist, and restricted to these values
+When this happens, we want to query all of the Contacts for the Account, and update them from "Active" to "Inactive"
+    [Contact.Status__c : "Active", "Inactive"]
+        Can assume picklist, and restricted to these values
+Also we must make sure that the Account:
+    -- has no OPEN opportunities before we do this
+        OPEN means a that the Opportunity Stage is _not_ "Closed Won" or "Closed Lost"
+    -- and that the Account is of Record Type "Customer"*/
+
+    public static void accStatusChanged(Map<Id, Account> newMap, Map<Id, Account> oldMap) {
+        Set<Id> accToUpdateCon = new Set<Id>();
+        List<Account> accountsToUpdate = new List<Account>();
+    
+        // Retrieve Business Record Type Id from custom setting
+        Id businessRecordTypeId = BusinessRecordType__c.getInstance().RecordTypeId__c;
+    
+        // Retrieve Customer Record Type Id from custom setting
+        Id customerRecordTypeId = CustomerRecordType__c.getInstance().RecordTypeId__c;
+    
+        for (Account updateAccount : newMap.values()) {
+            System.debug('Account being processed: ' + updateAccount);
+    
+            // Ensure we are checking for Status change from Active to Inactive
+            if (updateAccount.Status__c == 'Inactive' && oldMap.get(updateAccount.Id).Status__c == 'Active') {
+                System.debug('Account status changed from Active to Inactive: ' + updateAccount.Id);
+                if (!hasOpp(updateAccount.Id)) {
+                    System.debug('No open opportunities for Account: ' + updateAccount.Id);
+                    // Check if Account Record Type is 'Business'
+                    if (updateAccount.RecordTypeId == businessRecordTypeId) {
+                        System.debug('Account is of Business Record Type: ' + updateAccount.Id);
+                        // Change the record type to 'Customer'
+                        Account updatedAccount = new Account(
+                            Id = updateAccount.Id,
+                            RecordTypeId = customerRecordTypeId
+                        );
+                        accountsToUpdate.add(updatedAccount);
+                        accToUpdateCon.add(updateAccount.Id);
+                    }
+                }
+            }
+        }
+    
+        if (!accToUpdateCon.isEmpty()) {
+            System.debug('Accounts to update contacts: ' + accToUpdateCon);
+            List<Contact> contactsToUpdate = [SELECT Id, Status__c, LastName FROM Contact WHERE AccountId IN :accToUpdateCon];
+    
+            for (Contact con : contactsToUpdate) {
+                con.Status__c = 'Inactive';
+                System.debug('Contact to be updated: ' + con);
+                System.debug('Contact Last Name: ' + con.LastName);
+            }
+    
+            update contactsToUpdate;
+        }
+    
+        if (!accountsToUpdate.isEmpty()) {
+            System.debug('Accounts to update record type: ' + accountsToUpdate);
+            update accountsToUpdate;
+        }
+    }
+    
+    public static Boolean hasOpp(Id accountId) {
+        List<Opportunity> openOpp = [SELECT Id FROM Opportunity 
+                                     WHERE AccountId = :accountId AND StageName NOT IN ('Closed Won', 'Closed Lost')];
+        System.debug('Open opportunities for Account: ' + accountId + ' are ' + openOpp);
+        return !openOpp.isEmpty();
+    }
+    
+
+
 }
 
 //Automatically create related Contact on insertion of account and update Client Contact lookup field.
+
+
 

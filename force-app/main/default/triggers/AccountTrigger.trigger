@@ -7,15 +7,11 @@ trigger AccountTrigger on Account (after insert, after update) {
             AccountTriggerHandler.afterUpdate(trigger.newMap, trigger.oldMap);
             AccountTriggerHandler.deleteOppandContact(trigger.new, trigger.oldMap);
             AccountTriggerHandler.deleteOppProbability(trigger.new, trigger.oldMap);
+            AccountTriggerHandler.accStatusChanged(Trigger.newMap, Trigger.oldMap);
             
         }
-    }
+    }   
 }
-
-
-
-
-
 
 
 
